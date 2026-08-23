@@ -154,6 +154,28 @@ function validateTTSContribution(tts) {
   if (!['process', 'cloud', 'wasm'].includes(mode)) {
     fail('contributes.tts.mode must be "process", "cloud", or "wasm".')
   }
+
+  if (tts.resources !== undefined) {
+    if (!Array.isArray(tts.resources)) {
+      fail('contributes.tts.resources must be an array.')
+    }
+    for (let i = 0; i < tts.resources.length; i++) {
+      const res = tts.resources[i]
+      if (!res || typeof res !== 'object') {
+        fail(`contributes.tts.resources[${i}] is invalid.`)
+      }
+      if (!res.url || typeof res.url !== 'string' || !res.url.startsWith('https://')) {
+        fail(`contributes.tts.resources[${i}].url must be a valid HTTPS url.`)
+      }
+      requireRelativePath(res.path, `contributes.tts.resources[${i}].path`)
+      if (typeof res.size !== 'number' || res.size <= 0) {
+        fail(`contributes.tts.resources[${i}].size must be a positive number in bytes.`)
+      }
+      if (typeof res.sha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(res.sha256)) {
+        fail(`contributes.tts.resources[${i}].sha256 must be a valid sha256 hex string (64 characters).`)
+      }
+    }
+  }
 }
 
 function validateTranslatorContribution(translator) {

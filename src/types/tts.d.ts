@@ -24,6 +24,13 @@ interface ExtensionTTSStopResponse {
   success?: boolean
 }
 
+interface ExtensionTTSResource {
+  url: string
+  path: string
+  size: number
+  sha256: string
+}
+
 interface ExtensionTTSHandlerMap {
   getVoices(): ExtensionMaybePromise<ExtensionTTSGetVoicesResponse>
   speak(request: ExtensionTTSSpeakRequest): ExtensionMaybePromise<ExtensionTTSSpeakResponse>
@@ -33,3 +40,4 @@ interface ExtensionTTSHandlerMap {
 interface ExtensionTTSApi {
   register(handlers: ExtensionTTSHandlerMap): Promise<void>
 }
+

@@ -145,6 +145,7 @@ For a declarative theme asset, add `contributes.themes` only after selecting the
    - `process`: spawns a local binary via `novel.process.spawn(...)` and communicates over stdio JSON lines. Desktop Electron only (`novel.process` is not available on web). See `src/tts/python/server.py`.  
    - `cloud`: calls a cloud API via `novel.network.fetchJson`/`fetchText`; requires `network` + `allowedHosts`.  
    - `wasm`: runs client-side WASM/ONNX inference; load assets via `novel.storage.get(...)` or `novel.storage.createAssetUrl(...)`.  
+   - External models, binaries, and lexicons can be declared under `contributes.tts.resources` to be automatically downloaded during installation.  
 2. Register handlers via `novel.tts.register`: `getVoices`, `speak({ text, voiceId })` → `{ audio, mimeType }`, and `stop`. `getVoices` and `speak` are required.  
 3. Read [src/tts/README.md](src/tts/README.md).  
 4. Update `test/tts/run-tests.js`. Run `npm test`, then `npm run test:package`.  
@@ -343,7 +344,8 @@ When replacing the `Template*` types with source-specific types, update [src/scr
 | `permissions` | Request only capabilities the selected profile needs. |  
 | `network.allowedHosts` | Required for scrapers and cloud TTS/translators. Include the source hostname; an allowed entry also permits its subdomains. Private networks and `localhost` are rejected. |  
 | `contributes.scraper` | Singular scraper metadata, capabilities, and search fields. Never use `contributes.scrapers`. |  
-| `contributes.tts` | Singular TTS metadata (`name`, `description`, `mode`, `capabilities`). |  
+| `contributes.tts` | Singular TTS metadata (`name`, `description`, `mode`, `capabilities`, optional `resources`). |  
+| `contributes.tts.resources` | Optional array of external downloadable assets (`url`, `path`, `size`, `sha256`) fetched during extension installation. |  
 | `contributes.translator` | Singular translator metadata (`name`, `description`, `capabilities`, `sourceLanguages`, `targetLanguages`). |  
 | `contributes.settings` | Optional non-secret preferences and actions (`text`, `password`, `url`, `email`, `number`, `checkbox`, `select`, `textarea`, `audio`). Persistent actions require `storage`. |  
 | `contributes.themes` | Optional declarative theme metadata for a theme profile. |  

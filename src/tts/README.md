@@ -179,6 +179,78 @@ novel.settings.register({
 })
 ```
 
+### 5. Automatic Resource Downloading on Installation (`resources`)
+
+TTS extensions often require large assets such as ONNX model weights, WASM modules, voice tensors, Python binaries, or phonetic lexicons. To keep extension ZIP packages lightweight and avoid bloating package sizes, you can declare external downloadable resources in `contributes.tts.resources`.
+
+During extension installation (via ZIP file or buffer), the host application automatically downloads these resources directly into the extension directory before final activation.
+
+#### Manifest Configuration (`extension.json`)
+
+```json
+{
+  "contributes": {
+    "tts": {
+      "name": "My Custom TTS",
+      "mode": "wasm",
+      "capabilities": ["getVoices", "speak", "stop"],
+      "resources": [
+        {
+          "url": "https://cdn.example.com/models/voice-model.onnx",
+          "path": "models/voice-model.onnx",
+          "size": 15482390,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "url": "https://cdn.example.com/dicts/lexicon.bin",
+          "path": "data/lexicon.bin",
+          "size": 2048576,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ]
+    }
+  }
+}
+```
+
+#### Resource Field Specifications & Security Constraints
+
+| Field | Type | Description & Validation Rules |
+| --- | --- | --- |
+| `url` | `string` | **Must be a public HTTPS URL** (`https://...`). HTTP is disallowed, and private networks/loopback addresses (e.g. `localhost`, `127.0.0.1`, `192.168.x.x`, `10.x.x.x`) are strictly blocked to prevent SSRF vulnerabilities. |
+| `path` | `string` | Safe relative destination path within the extension folder (e.g. `models/voice-model.onnx` or `bin/server`). Subdirectories are created automatically. Path traversal (`..`) or absolute paths (`/`) are prohibited. |
+| `size` | `number` | Expected file size in bytes (positive integer `> 0`). Used for progress reporting and integrity verification. |
+| `sha256` | `string` | SHA-256 checksum (64 hexadecimal characters). The host calculates the hash during streaming and rejects/deletes the resource if it does not match. |
+
+#### Installation Lifecycle & Caching
+
+1. **Extraction**: The ZIP is unpacked into the destination extension directory.
+2. **Resource Check & Resume**: The host iterates through declared `resources`. If a resource file already exists at `path` and its file size matches `size`, downloading is skipped.
+3. **Secure Streaming Download**: Downloads follow up to 5 HTTP redirects (re-checking URL safety on each hop) and compute the SHA-256 hash on-the-fly.
+4. **Integrity Enforcement**: If the downloaded size or SHA-256 hash mismatches, the file is removed and installation aborts.
+
+#### Accessing Downloaded Resources in Code
+
+After installation, the downloaded files reside inside the extension root directory and can be consumed via standard SDK APIs:
+
+- **WASM / Web Mode**:
+  ```ts
+  // 1. Read as in-memory DOM File object
+  const modelFile = (await novel.storage.get('models/voice-model.onnx')) as File
+  const arrayBuffer = await modelFile.arrayBuffer()
+
+  // 2. Or create a streaming Virtual Asset URL (zero-copy)
+  const assetUrl = await novel.storage.createAssetUrl('models/voice-model.onnx')
+  const response = await fetch(assetUrl)
+  const buffer = await response.arrayBuffer()
+  ```
+
+- **Process Mode (Desktop Electron)**:
+  ```ts
+  // Spawn downloaded binary directly
+  await novel.process.spawn({ executable: 'bin/server' })
+  ```
+
 ## Building and Packaging
 
 Run the build script to package your extension:
