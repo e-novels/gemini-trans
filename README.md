@@ -345,9 +345,22 @@ When replacing the `Template*` types with source-specific types, update [src/scr
 | `contributes.scraper` | Singular scraper metadata, capabilities, and search fields. Never use `contributes.scrapers`. |  
 | `contributes.tts` | Singular TTS metadata (`name`, `description`, `mode`, `capabilities`). |  
 | `contributes.translator` | Singular translator metadata (`name`, `description`, `capabilities`, `sourceLanguages`, `targetLanguages`). |  
-| `contributes.settings` | Optional non-secret preferences and actions. Persistent actions require `storage`. |  
+| `contributes.settings` | Optional non-secret preferences and actions (`text`, `password`, `url`, `email`, `number`, `checkbox`, `select`, `textarea`, `audio`). Persistent actions require `storage`. |  
 | `contributes.themes` | Optional declarative theme metadata for a theme profile. |  
   
+### Extension Settings Formats (`contributes.settings.fields`)
+
+Extensions can declare settings fields with the following `type` options:
+- `text`: Single-line text input.
+- `password`: Masked input with show/hide toggle for sensitive tokens/keys.
+- `url`: Validated URL endpoint.
+- `email`: Email address format.
+- `number`: Numeric input with optional `min`, `max`, `step`.
+- `checkbox`: Boolean toggle (true/false).
+- `select`: Dropdown menu with predefined `options: [{ label, value }]`.
+- `textarea`: Multiline text area.
+- `audio`: Drag-and-drop audio input with file selector, audio preview player, and configurable `accept` types & `maxSizeMb` limits (e.g. for Voice Cloning TTS reference samples).
+
 Every declared scraper/TTS/translator capability must be registered exactly once during `activate`. The required capabilities for scraper are `search`, `getBookDetail`, and `getChapter`; for TTS: `getVoices` and `speak`.  
   
 ## Install, Update, And Diagnose  

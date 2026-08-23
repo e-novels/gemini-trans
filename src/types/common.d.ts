@@ -1,3 +1,4 @@
+type ThemeVariableName = string
 type ExtensionLogValue = unknown
 
 type ExtensionMaybePromise<T> = T | Promise<T>
@@ -30,6 +31,8 @@ interface ExtensionStorageApi {
 interface ExtensionSettingsActionResult {
   success: boolean
   message?: string
+  audio?: string
+  mimeType?: string
 }
 
 interface ExtensionSettingsApi {

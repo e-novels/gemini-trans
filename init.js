@@ -180,6 +180,36 @@ function initialize(root, rawOptions) {
         description: options.description,
         mode: options.ttsMode,
         capabilities: ['getVoices', 'speak', 'stop']
+      },
+      settings: {
+        fields: [
+          {
+            id: 'voice',
+            label: 'Voice',
+            type: 'select',
+            description: 'Select default voice.',
+            defaultValue: 'voice-1',
+            options: [
+              { label: 'Sample Voice 1', value: 'voice-1' },
+              { label: 'Sample Voice 2', value: 'voice-2' }
+            ]
+          },
+          {
+            id: 'previewText',
+            label: 'Preview Text',
+            type: 'textarea',
+            description: 'Sample text to test speech synthesis.',
+            defaultValue: 'This is a sample speech synthesis test.'
+          }
+        ],
+        actions: [
+          {
+            id: 'previewVoice',
+            label: '🔊 Preview Voice',
+            style: 'primary',
+            fields: ['voice', 'previewText']
+          }
+        ]
       }
     }
   } else if (options.kind === 'translator') {

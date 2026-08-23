@@ -19,19 +19,49 @@ The options for `--tts-mode` are `process`, `cloud`, or `wasm`.
 
 ## Required Manifest
 
-For every TTS extension, `extension.json` must contain the following structure:
+For every TTS extension, `extension.json` should declare the TTS contribution and settings schema for user preferences (voice selection, preview text, test action):
 
 ```json
 {
   "starter": { "kind": "tts" },
-  "permissions": ["tts"],
+  "permissions": ["tts", "storage"],
   "contributes": {
     "tts": {
       "name": "My TTS Provider",
       "description": "Provide custom text-to-speech voices.",
       "version": 1,
-      "mode": "process",
+      "mode": "cloud",
       "capabilities": ["getVoices", "speak", "stop"]
+    },
+    "settings": {
+      "fields": [
+        {
+          "id": "voice",
+          "label": "Voice",
+          "type": "select",
+          "description": "Select default voice.",
+          "defaultValue": "voice-1",
+          "options": [
+            { "label": "Sample Voice 1", "value": "voice-1" },
+            { "label": "Sample Voice 2", "value": "voice-2" }
+          ]
+        },
+        {
+          "id": "previewText",
+          "label": "Preview Text",
+          "type": "textarea",
+          "description": "Sample text to test speech synthesis.",
+          "defaultValue": "This is a sample speech synthesis test."
+        }
+      ],
+      "actions": [
+        {
+          "id": "previewVoice",
+          "label": "🔊 Preview Voice",
+          "style": "primary",
+          "fields": ["voice", "previewText"]
+        }
+      ]
     }
   }
 }
@@ -88,6 +118,66 @@ In WASM mode:
 - You can load custom assets (like ONNX models or dictionary files) using `novel.storage.get('models/file.onnx')` which returns a standard `File` object for in-memory processing.
 - Alternatively, generate streaming asset URLs with `novel.storage.createAssetUrl('models/file.onnx')` which returns a virtual URL (`novel-ext://...` on Desktop or `blob:...` on Web) for zero-copy streaming fetch.
 - Run sandboxed inferences in web workers or the extension environment.
+
+### 4. Voice Cloning & Audio Input Settings
+
+For TTS extensions supporting Voice Cloning (e.g. F5-TTS, GPT-SoVITS, CosyVoice, XTTS), you can declare an `"audio"` setting field in `contributes.settings`. This provides a drag-and-drop audio input zone in the UI with live audio playback preview:
+
+```json
+{
+  "contributes": {
+    "settings": {
+      "fields": [
+        {
+          "id": "voiceName",
+          "label": "Cloned Voice Name",
+          "type": "text",
+          "placeholder": "e.g. My Custom Narrator",
+          "required": true
+        },
+        {
+          "id": "referenceAudio",
+          "label": "Reference Sample Audio",
+          "type": "audio",
+          "description": "Drag and drop a 5-30s audio sample (.wav, .mp3, .ogg, .flac).",
+          "required": true,
+          "maxSizeMb": 15,
+          "accept": ["audio/wav", "audio/mp3", "audio/ogg", ".wav", ".mp3", ".ogg", ".flac", ".m4a"]
+        }
+      ],
+      "actions": [
+        {
+          "id": "cloneVoice",
+          "label": "🎙️ Clone Voice",
+          "style": "primary",
+          "fields": ["voiceName", "referenceAudio"],
+          "confirm": "Clone voice using the provided audio sample?",
+          "longRunning": true
+        }
+      ]
+    }
+  }
+}
+```
+
+Handle the action in your extension using `novel.settings.register`:
+
+```ts
+novel.settings.register({
+  async cloneVoice(payload) {
+    const { voiceName, referenceAudio } = payload
+    // referenceAudio is a Base64 Data URL (data:audio/wav;base64,...)
+    await novel.progress.report({ message: "Analyzing reference voice timbre...", percentage: 40 })
+
+    // Process or send to Python / cloud inference server...
+
+    return {
+      success: true,
+      message: `Voice "${voiceName}" cloned successfully!`
+    }
+  }
+})
+```
 
 ## Building and Packaging
 
