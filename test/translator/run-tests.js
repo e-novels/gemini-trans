@@ -47,6 +47,7 @@ module.exports = async function runTranslatorTests(root, manifest) {
       },
       network: {
         fetchJson: async (url, options) => {
+          assert.equal(options?.timeout, 120_000, 'Network request timeout should be 120,000ms (2 minutes)')
           const body = JSON.parse(options.body)
           const promptText = body.contents[0].parts[0].text
           const paragraphs = JSON.parse(promptText.split('\n\n')[1]).paragraphs
@@ -77,19 +78,45 @@ module.exports = async function runTranslatorTests(root, manifest) {
     assert.ok(getLanguagesRes.targetLanguages.includes('vi'))
     assert.ok(getLanguagesRes.targetLanguages.includes('en'))
 
-    // 1. Test Mock fallback when no API key is in storage
+    // 1. Test Fallback when no API key is in storage (clean original text without [AI Translated])
     const translateMockRes = await registeredTranslator.translate({
       paragraphs: ['Hello world', 'Second paragraph']
     })
     assert.equal(translateMockRes.translatedParagraphs.length, 2)
-    assert.equal(translateMockRes.translatedParagraphs[0], '[AI Translated] Hello world')
+    assert.equal(translateMockRes.translatedParagraphs[0], 'Hello world')
 
-    // 2. Test Gemini translation when API key is configured
-    storageStore.set('apiKey', 'AIzaSyFakeTestKey12345')
-    storageStore.set('model', 'gemini-2.5-flash')
-    storageStore.set('targetLang', 'vi')
-    storageStore.set('style', 'tienhiep_kiemhiep')
+    // 2. Test Settings Action saveSettings with new API Key
+    assert.ok(registeredSettings !== null, 'Settings handlers should be registered')
+    assert.equal(typeof registeredSettings.saveSettings, 'function')
+    const saveRes = await registeredSettings.saveSettings({
+      apiKey: 'AIzaSySavedKey98765',
+      model: 'gemini-2.5-flash',
+      targetLang: 'vi',
+      style: 'tienhiep_kiemhiep',
+      temperature: 0.35,
+      batchSize: 30,
+      glossary: 'Tiêu Viêm: Tiêu Viêm',
+      customPrompt: 'Giữ nguyên xưng hô'
+    })
+    assert.equal(saveRes.success, true)
+    assert.ok(saveRes.message.includes('API Key: AIzaSy...8765'))
+    assert.equal(storageStore.get('apiKey'), 'AIzaSySavedKey98765')
+    assert.equal(storageStore.get('targetLang'), 'vi')
+    assert.equal(storageStore.get('temperature'), 0.35)
+    assert.equal(storageStore.get('batchSize'), 30)
 
+    // 3. Test saving again with empty apiKey (does NOT wipe existing stored key)
+    const saveEmptyKeyRes = await registeredSettings.saveSettings({
+      apiKey: '',
+      model: 'gemini-2.5-pro',
+      targetLang: 'en'
+    })
+    assert.equal(saveEmptyKeyRes.success, true)
+    assert.equal(storageStore.get('apiKey'), 'AIzaSySavedKey98765') // preserved
+    assert.equal(storageStore.get('model'), 'gemini-2.5-pro')
+    assert.equal(storageStore.get('targetLang'), 'en')
+
+    // 4. Test Gemini translation using saved API key from storage
     const translateGeminiRes = await registeredTranslator.translate({
       paragraphs: ['Tiêu Viêm mở to hai mắt', 'Luyện Dược Sư truyền kỳ'],
       sourceLang: 'zh',
@@ -99,16 +126,15 @@ module.exports = async function runTranslatorTests(root, manifest) {
     assert.equal(translateGeminiRes.translatedParagraphs[0], '[Gemini Dịch] Tiêu Viêm mở to hai mắt')
     assert.equal(translateGeminiRes.translatedParagraphs[1], '[Gemini Dịch] Luyện Dược Sư truyền kỳ')
 
-    // 3. Test Settings Action testConnection
-    assert.ok(registeredSettings !== null, 'Settings handlers should be registered')
+    // 5. Test Settings Action testConnection without passing apiKey (uses saved key from storage)
     assert.equal(typeof registeredSettings.testConnection, 'function')
     const testConnRes = await registeredSettings.testConnection({
-      apiKey: 'AIzaSyFakeTestKey12345',
       model: 'gemini-2.5-flash',
       targetLang: 'vi'
     })
     assert.equal(testConnRes.success, true)
     assert.ok(testConnRes.message.includes('Kết nối Gemini API thành công'))
+    assert.ok(testConnRes.message.includes('AIzaSy...8765'))
 
     await runTranslatorContractTests(root, manifest, registeredTranslator)
     await extension.deactivate()

@@ -9,9 +9,9 @@ module.exports = async function runTranslatorContractTests(root, manifest, handl
   // 1. Positive Tests
   if (handlers) {
     if (typeof handlers.translate === 'function') {
-      const res = await handlers.translate({ text: 'Hello' })
+      const res = await handlers.translate({ paragraphs: ['Hello'] })
       assert.doesNotThrow(() => {
-        enforceContract('translator', 'translate', res.translatedText || res)
+        enforceContract('translator', 'translate', res, { expectedBatchCount: 1 })
       })
     }
   }
@@ -19,18 +19,18 @@ module.exports = async function runTranslatorContractTests(root, manifest, handl
   // 2. Negative Contract Tests
   assert.throws(
     () => enforceContract('translator', 'translate', ''),
-    /translate response must be a non-empty string/,
-    'Translator.translate must reject empty string'
+    /translate response must be an object containing "translatedParagraphs"/,
+    'Translator.translate must reject string'
   )
   assert.throws(
     () => enforceContract('translator', 'translate', { invalid: true }),
-    /translate response must be a non-empty string/,
-    'Translator.translate must reject objects'
+    /response "translatedParagraphs" must be an array of strings/,
+    'Translator.translate must reject objects without translatedParagraphs'
   )
   assert.throws(
-    () => enforceContract('translator', 'translateBatch', ['T1'], { expectedBatchCount: 2 }),
-    /returned 1 items, expected exactly 2/,
-    'Translator.translateBatch must reject length mismatch'
+    () => enforceContract('translator', 'translate', { translatedParagraphs: ['T1'] }, { expectedBatchCount: 2 }),
+    /returned 1 paragraphs, expected exactly 2/,
+    'Translator.translate must reject length mismatch'
   )
 
   console.log('  [PASS] All Translator Contract Enforcement Tests passed successfully.')

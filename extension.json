@@ -78,9 +78,8 @@
           "id": "apiKey",
           "type": "password",
           "label": "Google Gemini API Key",
-          "description": "Khóa API Google Gemini (lấy miễn phí tại Google AI Studio: https://aistudio.google.com/)",
-          "placeholder": "AIzaSy...",
-          "required": true
+          "description": "Khóa API Google Gemini (lấy tại Google AI Studio: https://aistudio.google.com/). Sau khi lưu, bạn có thể để trống trường này trong các lần chỉnh sửa sau.",
+          "placeholder": "Nhập AIzaSy... (để trống nếu đã lưu trước đó)"
         },
         {
           "id": "model",
@@ -207,11 +206,11 @@
           "id": "batchSize",
           "type": "number",
           "label": "Số đoạn văn mỗi lượt gọi (Batch size)",
-          "description": "Số lượng đoạn văn gửi trong 1 lượt gọi API (mặc định: 25)",
-          "defaultValue": 25,
-          "min": 5,
-          "max": 100,
-          "step": 5
+          "description": "Để 0 để dịch toàn bộ chương trong 1 lượt (Khuyên dùng - giữ 100% ngữ cảnh nhân vật & mạch truyện). Đặt số > 0 nếu muốn chia mẻ.",
+          "defaultValue": 0,
+          "min": 0,
+          "max": 200,
+          "step": 10
         },
         {
           "id": "glossary",
@@ -230,9 +229,24 @@
       ],
       "actions": [
         {
+          "id": "saveSettings",
+          "label": "💾 Lưu cài đặt",
+          "style": "primary",
+          "fields": [
+            "apiKey",
+            "model",
+            "targetLang",
+            "style",
+            "temperature",
+            "batchSize",
+            "glossary",
+            "customPrompt"
+          ]
+        },
+        {
           "id": "testConnection",
           "label": "⚡ Kiểm tra kết nối API",
-          "style": "primary",
+          "style": "default",
           "fields": [
             "apiKey",
             "model",

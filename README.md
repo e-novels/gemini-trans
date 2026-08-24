@@ -167,6 +167,9 @@ Scraper capability ↔ handler ↔ request:
 
 - **Standard Scraper Methods** (`search`, `getBookDetail`, `getChapter`, `getComments`, `getReviews`): Maximum **45 seconds** timeout.
 - **Batch Download Method** (`download`): Maximum **10 minutes (600,000 ms)** timeout to allow batch crawling of multiple chapters.
+- **TTS Speech Synthesis** (`speak`): Maximum **2 minutes (120,000 ms)** timeout (customizable via `contributes.tts.speakTimeoutMs`).
+- **Batch Translator** (`translate`): Maximum **3 minutes (180,000 ms)** timeout for batch AI/machine translation of full chapters.
+- **Network Requests** (`novel.network.fetchJson` / `fetchText`): Default **10 seconds (10,000 ms)** per request. For AI models or slower external APIs, pass `{ timeout: 120_000 }` (e.g. 120 seconds) in `ExtensionFetchOptions` to prevent early request abortion.
 - **Best Practice for `download`**: When downloading multiple chapters sequentially, throttle requests politely (e.g. `150ms` - `300ms` delay between requests) to prevent HTTP 429 rate-limiting from target servers while ensuring the entire download completes within the 10-minute ceiling.
 
 ## Required Response Shapes (scraper)  

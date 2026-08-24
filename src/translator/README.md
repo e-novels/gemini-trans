@@ -70,3 +70,20 @@ export function activate(novel: NovelExtensionApi) {
 - **`translate(request)`**:
   - Input `request`: `{ paragraphs: string[], sourceLang?: string, targetLang?: string }`
   - Output `response`: `{ translatedParagraphs: string[] }` (array preserving the exact paragraph count and order).
+
+## 4. Timeouts & External API Calls
+
+- **Invocation Timeout**: The host allows up to **3 minutes (180,000 ms)** for each `translate` call.
+- **Network Timeout**: The host proxy (`novel.network.fetchJson` / `fetchText`) has a default timeout of **10 seconds (10,000 ms)** per HTTP request. When calling external AI APIs (such as Gemini, OpenAI, Claude), you **must specify a longer timeout** in `ExtensionFetchOptions` (e.g. `timeout: 120_000` for 2 minutes) to prevent premature aborts:
+
+```ts
+const response = await novel.network.fetchJson<MyApiResponse>('https://api.example.com/translate', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`
+  },
+  body: JSON.stringify({ paragraphs, targetLang }),
+  timeout: 120_000 // 120 seconds timeout for AI generation
+})
+```

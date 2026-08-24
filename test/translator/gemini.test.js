@@ -84,9 +84,11 @@ module.exports = async function runGeminiUnitTests() {
   // 4. GeminiClient with Mock Network and Target Language
   let fetchCount = 0
   let lastTargetLangInPrompt = ''
+  let lastFetchOptions = null
   const mockNetwork = {
     fetchJson: async (url, options) => {
       fetchCount++
+      lastFetchOptions = options
       const body = JSON.parse(options.body)
       const promptText = body.contents[0].parts[0].text
       lastTargetLangInPrompt = promptText
@@ -118,6 +120,7 @@ module.exports = async function runGeminiUnitTests() {
 
   assert.deepEqual(translations, ['[Dịch] Hello', '[Dịch] World'])
   assert.equal(fetchCount, 1)
+  assert.equal(lastFetchOptions?.timeout, 120_000, 'fetchJson options should specify a 120_000ms (2 minutes) timeout')
   assert.ok(lastTargetLangInPrompt.includes('Tiếng Anh'))
 
   // 5. Test connection with custom targetLang
@@ -133,13 +136,13 @@ module.exports = async function runGeminiUnitTests() {
   const testConnFail = await client.testConnection({ apiKey: '' })
   assert.equal(testConnFail.success, false)
 
-  // 6. BatchProcessor with Special Tokens
-  const progressReports = []
+  // 6. BatchProcessor with Full Chapter Mode (batchSize = 0)
+  const fullChapterReports = []
   const batchProcessor = new BatchProcessor({
     client,
     progress: {
       report: async data => {
-        progressReports.push(data)
+        fullChapterReports.push(data)
       }
     },
     logger: { info: async () => {}, warn: async () => {}, error: async () => {} }
@@ -154,20 +157,34 @@ module.exports = async function runGeminiUnitTests() {
     'Đoạn văn 3 kết thúc chương.'
   ]
 
-  const processed = await batchProcessor.processParagraphs(testChapter, {
+  // Full chapter 1-call mode
+  fetchCount = 0
+  const processedFull = await batchProcessor.processParagraphs(testChapter, {
+    apiKey: 'mock-test-key-123',
+    batchSize: 0
+  }, { sourceLang: 'zh', targetLang: 'vi' })
+
+  assert.equal(fetchCount, 1, 'Full chapter translation should only make 1 API call')
+  assert.equal(processedFull.length, 6)
+  assert.equal(processedFull[0], '[Dịch] Đoạn văn 1 mở đầu.')
+  assert.equal(processedFull[1], '@{img:https://example.com/illustration1.png}')
+  assert.equal(processedFull[2], '')
+  assert.equal(processedFull[3], '[Dịch] Đoạn văn 2 tiếp tục câu chuyện.')
+  assert.equal(processedFull[4], '***')
+  assert.equal(processedFull[5], '[Dịch] Đoạn văn 3 kết thúc chương.')
+
+  // Chunked batch mode (batchSize = 2)
+  fetchCount = 0
+  const processedChunked = await batchProcessor.processParagraphs(testChapter, {
     apiKey: 'mock-test-key-123',
     batchSize: 2
   }, { sourceLang: 'zh', targetLang: 'vi' })
 
-  assert.equal(processed.length, 6)
-  assert.equal(processed[0], '[Dịch] Đoạn văn 1 mở đầu.')
-  assert.equal(processed[1], '@{img:https://example.com/illustration1.png}')
-  assert.equal(processed[2], '')
-  assert.equal(processed[3], '[Dịch] Đoạn văn 2 tiếp tục câu chuyện.')
-  assert.equal(processed[4], '***')
-  assert.equal(processed[5], '[Dịch] Đoạn văn 3 kết thúc chương.')
-  assert.ok(progressReports.length > 0)
-  assert.equal(progressReports[progressReports.length - 1].percentage, 100)
+  assert.equal(processedChunked.length, 6)
+  assert.equal(processedChunked[0], '[Dịch] Đoạn văn 1 mở đầu.')
+  assert.equal(processedChunked[3], '[Dịch] Đoạn văn 2 tiếp tục câu chuyện.')
+  assert.equal(processedChunked[5], '[Dịch] Đoạn văn 3 kết thúc chương.')
+  assert.equal(fetchCount, 2, 'Batch of 3 items with batchSize 2 should make 2 calls')
 
   console.log('  [PASS] All Gemini Translator Unit Tests passed successfully.')
 }

@@ -8,6 +8,7 @@ interface ExtensionFetchOptions {
   headers?: Record<string, string>
   body?: string
   credentials?: 'include' | 'omit'
+  timeout?: number
 }
 
 interface ExtensionError extends Error {

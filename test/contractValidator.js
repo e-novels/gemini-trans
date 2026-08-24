@@ -215,23 +215,34 @@ function validateDownloadContract(rawData, issues) {
 
 function validateTranslatorContract(method, rawData, expectedBatchCount, issues) {
   if (method === 'translate') {
-    if (typeof rawData !== 'string' || !rawData.trim()) {
-      issues.push('Translator.translate response must be a non-empty string')
+    if (typeof rawData !== 'object' || rawData === null || Array.isArray(rawData)) {
+      issues.push('Translator.translate response must be an object containing "translatedParagraphs"')
+      return
     }
-  } else if (method === 'translateBatch') {
-    if (!Array.isArray(rawData)) {
-      issues.push('Translator.translateBatch response must be an array of translated strings')
-    } else {
-      if (expectedBatchCount !== undefined && rawData.length !== expectedBatchCount) {
-        issues.push(
-          `Translator.translateBatch returned ${rawData.length} items, expected exactly ${expectedBatchCount}`
-        )
+    if (!Array.isArray(rawData.translatedParagraphs)) {
+      issues.push('Translator.translate response "translatedParagraphs" must be an array of strings')
+      return
+    }
+    if (expectedBatchCount !== undefined && rawData.translatedParagraphs.length !== expectedBatchCount) {
+      issues.push(
+        `Translator.translate returned ${rawData.translatedParagraphs.length} paragraphs, expected exactly ${expectedBatchCount}`
+      )
+    }
+    for (let i = 0; i < rawData.translatedParagraphs.length; i++) {
+      if (typeof rawData.translatedParagraphs[i] !== 'string') {
+        issues.push(`Translator.translate paragraph at index ${i} must be a string`)
       }
-      for (let i = 0; i < rawData.length; i++) {
-        if (typeof rawData[i] !== 'string') {
-          issues.push(`Translator.translateBatch item at index ${i} must be a string`)
-        }
-      }
+    }
+  } else if (method === 'getLanguages') {
+    if (typeof rawData !== 'object' || rawData === null || Array.isArray(rawData)) {
+      issues.push('Translator.getLanguages response must be an object')
+      return
+    }
+    if (!Array.isArray(rawData.sourceLanguages) || !rawData.sourceLanguages.every(l => typeof l === 'string')) {
+      issues.push('Translator.getLanguages response "sourceLanguages" must be an array of strings')
+    }
+    if (!Array.isArray(rawData.targetLanguages) || !rawData.targetLanguages.every(l => typeof l === 'string')) {
+      issues.push('Translator.getLanguages response "targetLanguages" must be an array of strings')
     }
   }
 }

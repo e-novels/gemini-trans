@@ -98,10 +98,11 @@ export class GeminiClient {
     const apiKey = config.apiKey.trim()
     const model = (config.model && config.model.trim()) || DEFAULT_MODEL
     const targetLang = options.targetLang || config.targetLang || 'vi'
+    const sourceLang = options.sourceLang || 'auto'
     const url = `${BASE_URL}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`
 
     const requestBody: GeminiGenerateContentRequest = buildGeminiRequestBody(paragraphs, {
-      sourceLang: options.sourceLang,
+      sourceLang,
       targetLang,
       style: config.style,
       temperature: config.temperature,
@@ -109,25 +110,53 @@ export class GeminiClient {
       customPrompt: config.customPrompt
     })
 
+    const maskedKey = apiKey.length > 10 ? `${apiKey.slice(0, 6)}...${apiKey.slice(-4)}` : `${apiKey.slice(0, 3)}...`
+    const samplePreview = paragraphs[0] ? `"${paragraphs[0].slice(0, 70)}${paragraphs[0].length > 70 ? '...' : ''}"` : ''
+    const glossaryCount = config.glossary ? config.glossary.split(/\r?\n/).filter(l => l.trim() && !l.startsWith('#') && !l.startsWith('//')).length : 0
+
+    await this.logger?.info?.(
+      `[Gemini Translator] 📤 Gửi API Request:\n` +
+      `  • Endpoint: ${BASE_URL}/${model}:generateContent?key=${maskedKey}\n` +
+      `  • Model: ${model}\n` +
+      `  • Ngôn ngữ: [${sourceLang} ➔ ${targetLang}]\n` +
+      `  • Số đoạn văn gửi: ${paragraphs.length}\n` +
+      `  • Temperature: ${requestBody.generationConfig?.temperature}\n` +
+      `  • Style: ${config.style || 'tienhiep_kiemhiep'}\n` +
+      `  • Glossary: ${glossaryCount > 0 ? `${glossaryCount} mục` : 'Không có'}\n` +
+      `  • Đoạn đầu tiên: ${samplePreview}`
+    )
+
     const maxRetries = 3
     let lastError: Error | null = null
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const startTime = Date.now()
       try {
         const response = await this.network.fetchJson<GeminiGenerateContentResponse>(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify(requestBody),
+          timeout: 120_000 // 2 minutes (120,000ms) for AI generation
         })
+
+        const duration = Date.now() - startTime
+
+        // Log raw response from Gemini API
+        try {
+          const rawResponseStr = typeof response === 'object' ? JSON.stringify(response, null, 2) : String(response)
+          await this.logger?.info?.(`[Gemini Translator] 📦 RAW Response từ Gemini API (${duration}ms):\n${rawResponseStr}`)
+        } catch {
+          await this.logger?.info?.(`[Gemini Translator] 📦 RAW Response từ Gemini API (${duration}ms):`, response)
+        }
 
         if (response.error) {
           const isRateLimit = response.error.code === 429 || response.error.status === 'RESOURCE_EXHAUSTED'
           if (isRateLimit && attempt < maxRetries) {
             const backoffMs = attempt * 2000
             await this.logger?.warn?.(
-              `Gemini API Rate Limit (429). Đang thử lại lượt ${attempt}/${maxRetries} sau ${backoffMs}ms...`
+              `[Gemini Translator] Rate Limit (429). Đang thử lại lượt ${attempt}/${maxRetries} sau ${backoffMs}ms...`
             )
             await sleep(backoffMs)
             continue
@@ -136,13 +165,18 @@ export class GeminiClient {
         }
 
         const rawText = extractTextFromResponse(response)
+        await this.logger?.info?.(`[Gemini Translator] 📄 RAW Content Text từ Candidate:\n${rawText}`)
+
         const translations = parseTranslationsFromText(rawText, paragraphs.length)
+
+        await this.logger?.info?.(
+          `[Gemini Translator] 📥 Nhận phản hồi API thành công (${duration}ms, phân tích được ${translations.length}/${paragraphs.length} đoạn)`
+        )
 
         if (translations.length !== paragraphs.length) {
           await this.logger?.warn?.(
-            `Gemini trả về ${translations.length} đoạn, mong đợi ${paragraphs.length} đoạn. Đang cân chỉnh danh sách...`
+            `[Gemini Translator] Số lượng đoạn trả về (${translations.length}) khác với đầu vào (${paragraphs.length}). Đang tự động cân chỉnh danh sách...`
           )
-          // Align lengths
           while (translations.length < paragraphs.length) {
             const missingIndex = translations.length
             translations.push(paragraphs[missingIndex])
@@ -154,8 +188,14 @@ export class GeminiClient {
 
         return translations
       } catch (err: unknown) {
+        const duration = Date.now() - startTime
         lastError = err instanceof Error ? err : new Error(String(err))
         const errorMsg = lastError.message
+
+        await this.logger?.error?.(
+          `[Gemini Translator] ❌ Lỗi RAW khi gọi API (${duration}ms, Model: ${model}): ${errorMsg}`,
+          err
+        )
 
         const isTransient =
           errorMsg.includes('429') ||
@@ -165,7 +205,9 @@ export class GeminiClient {
 
         if (isTransient && attempt < maxRetries) {
           const backoffMs = attempt * 2000
-          await this.logger?.warn?.(`Gọi Gemini API thất bại (lượt ${attempt}/${maxRetries}): ${errorMsg}. Đang thử lại...`)
+          await this.logger?.warn?.(
+            `[Gemini Translator] Gọi API tạm thời thất bại (${duration}ms, lượt ${attempt}/${maxRetries}): ${errorMsg}. Đang thử lại sau ${backoffMs}ms...`
+          )
           await sleep(backoffMs)
           continue
         }
@@ -181,10 +223,12 @@ export class GeminiClient {
     if (!config.apiKey || !config.apiKey.trim()) {
       return {
         success: false,
-        message: 'Vui lòng nhập Google Gemini API Key trước khi kiểm tra kết nối.'
+        message: 'Chưa tìm thấy Google Gemini API Key. Vui lòng nhập API Key và nhấn "Lưu cài đặt" trước khi kiểm tra.'
       }
     }
 
+    const rawKey = config.apiKey.trim()
+    const maskedKey = rawKey.length > 10 ? `${rawKey.slice(0, 6)}...${rawKey.slice(-4)}` : `${rawKey.slice(0, 3)}...`
     const targetLang = config.targetLang || 'vi'
     const sourceLang = targetLang === 'en' ? 'vi' : 'en'
     const testParagraphs = sourceLang === 'en'
@@ -200,7 +244,7 @@ export class GeminiClient {
       if (results && results.length > 0 && results[0].trim()) {
         return {
           success: true,
-          message: `Kết nối Gemini API thành công!\nModel: ${config.model || DEFAULT_MODEL}\nNgôn ngữ đích: ${targetLang}\nBản dịch mẫu (${sourceLang} -> ${targetLang}): "${results[0]}"`
+          message: `Kết nối Gemini API thành công!\n• API Key: ${maskedKey}\n• Model: ${config.model || DEFAULT_MODEL}\n• Ngôn ngữ đích: ${targetLang}\n• Bản dịch mẫu (${sourceLang} -> ${targetLang}): "${results[0]}"`
         }
       }
 
