@@ -1,11 +1,11 @@
 {
-  "name": "example-extension",
-  "displayName": "Example Extension",
-  "publisher": "your-publisher",
-  "version": "0.1.0",
-  "description": "A fixture-backed template for e-novels scraper or theme extensions.",
+  "name": "gemini-translator",
+  "displayName": "Gemini AI Translator",
+  "publisher": "e-novels",
+  "version": "1.0.0",
+  "description": "Hệ thống dịch thuật tiểu thuyết và truyện chữ chất lượng cao sử dụng Google Gemini API.",
   "starter": {
-    "kind": "scraper"
+    "kind": "translator"
   },
   "engines": {
     "enovel": ">=1.0.0"
@@ -17,48 +17,229 @@
     "always"
   ],
   "categories": [
-    "Scrapers"
+    "Translator"
   ],
   "keywords": [
     "e-novels",
-    "scraper",
-    "theme",
-    "template",
+    "translator",
+    "gemini",
+    "ai",
+    "novel",
+    "vietnamese",
     "typescript"
   ],
   "permissions": [
+    "translate",
     "network",
-    "reader"
+    "storage"
   ],
   "network": {
     "allowedHosts": [
-      "example.com"
+      "generativelanguage.googleapis.com"
     ]
   },
   "contributes": {
-    "scraper": {
-      "name": "Example Site",
-      "description": "Replace the placeholder routes and mappers with a source you are allowed to access.",
-      "version": 2,
-      "site": {
-        "name": "Example Site",
-        "baseUrl": "https://example.com"
-      },
+    "translator": {
+      "name": "Gemini AI Translator",
+      "description": "Dịch tự động nội dung chương truyện theo đoạn văn bằng Google Gemini API",
       "capabilities": [
-        "search",
-        "getBookDetail",
-        "getChapter"
+        "translate",
+        "getLanguages"
       ],
-      "search": {
-        "pageSize": 20,
-        "fields": [
-          {
-            "id": "query",
-            "type": "text",
-            "label": "Search"
-          }
-        ]
-      }
+      "sourceLanguages": [
+        "auto",
+        "zh",
+        "ja",
+        "ko",
+        "en",
+        "vi",
+        "fr",
+        "de",
+        "ru",
+        "es",
+        "th"
+      ],
+      "targetLanguages": [
+        "vi",
+        "en",
+        "zh",
+        "ja",
+        "ko",
+        "fr",
+        "de",
+        "ru",
+        "es",
+        "th"
+      ]
+    },
+    "settings": {
+      "fields": [
+        {
+          "id": "apiKey",
+          "type": "password",
+          "label": "Google Gemini API Key",
+          "description": "Khóa API Google Gemini (lấy miễn phí tại Google AI Studio: https://aistudio.google.com/)",
+          "placeholder": "AIzaSy...",
+          "required": true
+        },
+        {
+          "id": "model",
+          "type": "select",
+          "label": "Mô hình Gemini",
+          "description": "Lựa chọn mô hình AI để dịch thuật",
+          "defaultValue": "gemini-2.5-flash",
+          "options": [
+            {
+              "label": "Gemini 2.5 Flash (Khuyên dùng - Nhanh & Chất lượng cao)",
+              "value": "gemini-2.5-flash"
+            },
+            {
+              "label": "Gemini 2.5 Pro (Chất lượng dịch thuật cao cấp)",
+              "value": "gemini-2.5-pro"
+            },
+            {
+              "label": "Gemini 2.0 Flash (Nhanh, độ trễ thấp)",
+              "value": "gemini-2.0-flash"
+            },
+            {
+              "label": "Gemini 2.0 Flash Lite (Siêu nhanh, tiết kiệm)",
+              "value": "gemini-2.0-flash-lite"
+            },
+            {
+              "label": "Gemini 1.5 Flash",
+              "value": "gemini-1.5-flash"
+            },
+            {
+              "label": "Gemini 1.5 Pro",
+              "value": "gemini-1.5-pro"
+            }
+          ]
+        },
+        {
+          "id": "targetLang",
+          "type": "select",
+          "label": "Ngôn ngữ dịch đích mặc định",
+          "description": "Ngôn ngữ mà văn bản sẽ được dịch sang (mặc định: Tiếng Việt)",
+          "defaultValue": "vi",
+          "options": [
+            {
+              "label": "Tiếng Việt (Vietnamese)",
+              "value": "vi"
+            },
+            {
+              "label": "Tiếng Anh (English)",
+              "value": "en"
+            },
+            {
+              "label": "Tiếng Trung (Chinese)",
+              "value": "zh"
+            },
+            {
+              "label": "Tiếng Nhật (Japanese)",
+              "value": "ja"
+            },
+            {
+              "label": "Tiếng Hàn (Korean)",
+              "value": "ko"
+            },
+            {
+              "label": "Tiếng Pháp (French)",
+              "value": "fr"
+            },
+            {
+              "label": "Tiếng Đức (German)",
+              "value": "de"
+            },
+            {
+              "label": "Tiếng Nga (Russian)",
+              "value": "ru"
+            },
+            {
+              "label": "Tiếng Tây Ban Nha (Spanish)",
+              "value": "es"
+            },
+            {
+              "label": "Tiếng Thái (Thai)",
+              "value": "th"
+            }
+          ]
+        },
+        {
+          "id": "style",
+          "type": "select",
+          "label": "Phong cách dịch tiểu thuyết",
+          "description": "Văn phong dịch phù hợp với từng thể loại truyện",
+          "defaultValue": "tienhiep_kiemhiep",
+          "options": [
+            {
+              "label": "Tiên Hiệp / Kiếm Hiệp (Hán Việt chuẩn, xưng hô cổ trang)",
+              "value": "tienhiep_kiemhiep"
+            },
+            {
+              "label": "Ngôn Tình / Tình Cảm (Mượt mà, cảm xúc, tự nhiên)",
+              "value": "ngontinh"
+            },
+            {
+              "label": "Huyền Huyễn / Fantasy Phương Tây",
+              "value": "huyenhuyen_phuongtay"
+            },
+            {
+              "label": "Tiểu Thuyết Văn Học Chung (Chuẩn văn phong thuần Việt)",
+              "value": "tieuthuyet_chung"
+            },
+            {
+              "label": "Chính Xác / Sát Nghĩa (Bám sát câu chữ gốc)",
+              "value": "accurate"
+            }
+          ]
+        },
+        {
+          "id": "temperature",
+          "type": "number",
+          "label": "Độ sáng tạo (Temperature)",
+          "description": "0.1 - 0.4 cho bản dịch ổn định và chính xác (mặc định: 0.3)",
+          "defaultValue": 0.3,
+          "min": 0,
+          "max": 1,
+          "step": 0.05
+        },
+        {
+          "id": "batchSize",
+          "type": "number",
+          "label": "Số đoạn văn mỗi lượt gọi (Batch size)",
+          "description": "Số lượng đoạn văn gửi trong 1 lượt gọi API (mặc định: 25)",
+          "defaultValue": 25,
+          "min": 5,
+          "max": 100,
+          "step": 5
+        },
+        {
+          "id": "glossary",
+          "type": "textarea",
+          "label": "Bảng thuật ngữ / Nhân vật (Glossary)",
+          "description": "Định dạng: Từ gốc: Nghĩa dịch hoặc Từ gốc = Nghĩa dịch (mỗi dòng một từ)",
+          "placeholder": "Tiêu Viêm: Tiêu Viêm\nDược Lão: Dược Lão\nDị Hỏa: Dị Hỏa\nĐấu Khí: Đấu Khí"
+        },
+        {
+          "id": "customPrompt",
+          "type": "textarea",
+          "label": "Chỉ dẫn bổ sung cho Gemini",
+          "description": "Quy tắc hoặc lưu ý đặc biệt bạn muốn AI tuân theo khi dịch",
+          "placeholder": "Ví dụ: Hãy dùng đại từ nhân xưng 'huynh - muội' cho hai nhân vật chính..."
+        }
+      ],
+      "actions": [
+        {
+          "id": "testConnection",
+          "label": "⚡ Kiểm tra kết nối API",
+          "style": "primary",
+          "fields": [
+            "apiKey",
+            "model",
+            "targetLang"
+          ]
+        }
+      ]
     }
   }
 }

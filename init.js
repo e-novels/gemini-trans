@@ -125,7 +125,7 @@ function initialize(root, rawOptions) {
   const options = validateOptions(rawOptions)
   const manifestPath = path.join(root, 'extension.json')
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-  if (manifest.name !== 'example-extension' && !options.force) {
+  if (manifest.name !== 'example-extension' && manifest.name !== 'gemini-translator' && !options.force) {
     throw new Error('Refusing to replace an existing extension. Re-run with --force after reviewing the changes.')
   }
 
@@ -390,6 +390,7 @@ export async function deactivate(): Promise<void> {
 import { registerTranslatorProfile } from './translator'
 
 export * from './utilities'
+export * from './translator'
 
 export async function activate(novel: NovelExtensionApi): Promise<void> {
   initExtensionApi(novel)
